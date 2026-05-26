@@ -1,9 +1,14 @@
 // [Presentation Layer] — 캡슐 생성 화면 렌더링 담당
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:intl/intl.dart';
 import '../../application/view_models/auth_view_model.dart';
 import '../../application/view_models/capsule_view_model.dart';
 import '../../domain/entities/capsule.dart';
+import '../../domain/services/location_service.dart';
+import '../theme/app_theme.dart';
 
 class CapsuleCreateScreen extends StatefulWidget {
   const CapsuleCreateScreen({super.key});
@@ -13,14 +18,19 @@ class CapsuleCreateScreen extends StatefulWidget {
 }
 
 class _CapsuleCreateScreenState extends State<CapsuleCreateScreen> {
-  final _formKey = GlobalKey<FormState>();
   final _memoController = TextEditingController();
+  final _locationService = LocationService();
 
   bool _isPublic = false;
+  bool _locationLoading = false;
+  Position? _currentPosition;
+  String? _locationError;
 
-  // TODO: Week 13 — geolocator 패키지로 실제 GPS 좌표 대체 예정
-  static const double _dummyLat = 37.5665;
-  static const double _dummyLng = 126.9780;
+  @override
+  void initState() {
+    super.initState();
+    _fetchLocation();
+  }
 
   @override
   void dispose() {
@@ -28,18 +38,39 @@ class _CapsuleCreateScreenState extends State<CapsuleCreateScreen> {
     super.dispose();
   }
 
+  Future<void> _fetchLocation() async {
+    setState(() {
+      _locationLoading = true;
+      _locationError = null;
+    });
+    try {
+      final position = await _locationService.getCurrentPosition();
+      setState(() => _currentPosition = position);
+    } catch (e) {
+      setState(() => _locationError = e.toString());
+    } finally {
+      setState(() => _locationLoading = false);
+    }
+  }
+
   Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (_memoController.text.trim().isEmpty) {
+      _showSnackBar('기억을 입력해주세요');
+      return;
+    }
+    if (_currentPosition == null) {
+      _showSnackBar('위치 정보를 불러오는 중입니다. 잠시 후 다시 시도해주세요.');
+      return;
+    }
 
     final capsuleVm = context.read<CapsuleViewModel>();
     final authVm = context.read<AuthViewModel>();
-    final userId = authVm.user!.uid;
 
     final capsule = Capsule(
-      id: '', // Firestore에서 자동 생성
-      userId: userId,
-      latitude: _dummyLat,
-      longitude: _dummyLng,
+      id: '',
+      userId: authVm.user!.uid,
+      latitude: _currentPosition!.latitude,
+      longitude: _currentPosition!.longitude,
       memo: _memoController.text.trim(),
       photoUrls: [],
       isPublic: _isPublic,
@@ -47,160 +78,257 @@ class _CapsuleCreateScreenState extends State<CapsuleCreateScreen> {
     );
 
     await capsuleVm.createCapsule(capsule);
-
     if (!mounted) return;
 
     if (capsuleVm.error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('저장 실패: ${capsuleVm.error}'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _showSnackBar('저장 실패: ${capsuleVm.error}');
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('기억이 저장되었습니다 ✓')),
-      );
       Navigator.of(context).pop();
     }
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: GoogleFonts.notoSans()),
+        backgroundColor: AppTheme.primary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final capsuleVm = context.watch<CapsuleViewModel>();
+    final dateStr = DateFormat('yyyy년 M월 d일', 'ko').format(DateTime.now());
 
     return Scaffold(
+      backgroundColor: AppTheme.warmCream,
       appBar: AppBar(
-        title: const Text('기억 남기기'),
+        backgroundColor: AppTheme.warmCream,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              size: 18, color: AppTheme.textMedium),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          '기억 남기기',
+          style: GoogleFonts.gaegu(
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            color: AppTheme.textDark,
+          ),
+        ),
         actions: [
-          TextButton(
-            onPressed: capsuleVm.isLoading ? null : _save,
-            child: const Text(
-              '저장',
-              style: TextStyle(
-                color: Color(0xFF1D9E75),
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: TextButton(
+              onPressed: capsuleVm.isLoading ? null : _save,
+              style: TextButton.styleFrom(
+                backgroundColor: AppTheme.primary,
+                foregroundColor: Colors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20)),
+              ),
+              child: capsuleVm.isLoading
+                  ? const SizedBox(
+                      height: 16,
+                      width: 16,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    )
+                  : Text('저장',
+                      style: GoogleFonts.gaegu(
+                          fontSize: 15, fontWeight: FontWeight.w700)),
+            ),
+          ),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          // 날짜 + 위치 정보
+          Row(
+            children: [
+              Text(
+                dateStr,
+                style: GoogleFonts.gaegu(
+                    fontSize: 15, color: AppTheme.textMedium),
+              ),
+              const SizedBox(width: 8),
+              _buildLocationBadge(),
+            ],
+          ),
+          const SizedBox(height: 4),
+          const Divider(color: AppTheme.warmBorder, thickness: 1),
+          const SizedBox(height: 12),
+
+          // 텍스트 입력
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppTheme.warmBorder),
+            ),
+            padding: const EdgeInsets.all(16),
+            child: TextField(
+              controller: _memoController,
+              maxLines: 12,
+              maxLength: 500,
+              style: GoogleFonts.gaegu(
+                fontSize: 17,
+                color: AppTheme.textDark,
+                height: 1.8,
+              ),
+              decoration: InputDecoration(
+                hintText:
+                    '이 장소에서 어떤 기억을 남기고 싶으신가요?\n\n오늘의 날씨, 함께한 사람, 그때의 감정을 적어보세요 ✦',
+                hintStyle: GoogleFonts.gaegu(
+                    fontSize: 15, color: AppTheme.textLight, height: 1.8),
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                contentPadding: EdgeInsets.zero,
+                counterStyle: GoogleFonts.notoSans(
+                    fontSize: 11, color: AppTheme.textLight),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // 공개 여부
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppTheme.warmBorder),
+            ),
+            child: SwitchListTile(
+              title: Text(
+                '공개 기억',
+                style: GoogleFonts.gaegu(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textDark),
+              ),
+              subtitle: Text(
+                '다른 사람도 이 기억을 볼 수 있어요',
+                style: GoogleFonts.notoSans(
+                    fontSize: 12, color: AppTheme.textLight),
+              ),
+              value: _isPublic,
+              activeColor: AppTheme.primary,
+              onChanged: (v) => setState(() => _isPublic = v),
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // 저장 버튼
+          GestureDetector(
+            onTap: capsuleVm.isLoading ? null : _save,
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 15),
+              decoration: BoxDecoration(
+                color: capsuleVm.isLoading
+                    ? AppTheme.warmBeige
+                    : AppTheme.primary,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                capsuleVm.isLoading ? '저장 중...' : '✦  이 기억 저장하기',
+                style: GoogleFonts.gaegu(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
               ),
             ),
           ),
         ],
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(20),
+    );
+  }
+
+  Widget _buildLocationBadge() {
+    if (_locationLoading) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: AppTheme.primaryLight,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            // 현재 위치 표시 (더미)
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.grey[50],
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey[200]!),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.location_on, color: Color(0xFF1D9E75)),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          '현재 위치',
-                          style: TextStyle(
-                              fontWeight: FontWeight.w600, fontSize: 14),
-                        ),
-                        Text(
-                          '${_dummyLat.toStringAsFixed(4)}, ${_dummyLng.toStringAsFixed(4)}',
-                          style: const TextStyle(
-                              color: Colors.grey, fontSize: 12),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.orange[50],
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: const Text(
-                      'GPS 준비 중',
-                      style: TextStyle(color: Colors.orange, fontSize: 11),
-                    ),
-                  ),
-                ],
-              ),
+            const SizedBox(
+              width: 10,
+              height: 10,
+              child: CircularProgressIndicator(
+                  strokeWidth: 1.5, color: AppTheme.primary),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(width: 6),
+            Text('위치 찾는 중...',
+                style: GoogleFonts.notoSans(
+                    fontSize: 11, color: AppTheme.primary)),
+          ],
+        ),
+      );
+    }
 
-            // 메모 입력
-            const Text(
-              '이 장소에서의 기억',
-              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
-            ),
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: _memoController,
-              maxLines: 6,
-              maxLength: 500,
-              decoration: const InputDecoration(
-                hintText: '이 장소에서 어떤 기억을 남기고 싶으신가요?',
-                border: OutlineInputBorder(),
-                alignLabelWithHint: true,
-              ),
-              validator: (v) {
-                if (v == null || v.trim().isEmpty) return '메모를 입력해주세요';
-                return null;
-              },
-            ),
-            const SizedBox(height: 20),
+    if (_locationError != null) {
+      return GestureDetector(
+        onTap: _fetchLocation,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFF0EC),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFFFFCDBD)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.refresh_rounded,
+                  size: 12, color: Color(0xFFB85C38)),
+              const SizedBox(width: 4),
+              Text('위치 재시도',
+                  style: GoogleFonts.notoSans(
+                      fontSize: 11, color: const Color(0xFFB85C38))),
+            ],
+          ),
+        ),
+      );
+    }
 
-            // 공개 여부
-            Container(
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey[200]!),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: SwitchListTile(
-                title: const Text('공개 캡슐'),
-                subtitle: const Text('다른 사람도 이 기억을 볼 수 있어요'),
-                value: _isPublic,
-                activeColor: const Color(0xFF1D9E75),
-                onChanged: (v) => setState(() => _isPublic = v),
-              ),
-            ),
-            const SizedBox(height: 32),
-
-            // 저장 버튼
-            FilledButton.icon(
-              onPressed: capsuleVm.isLoading ? null : _save,
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF1D9E75),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              icon: capsuleVm.isLoading
-                  ? const SizedBox(
-                      height: 18,
-                      width: 18,
-                      child:
-                          CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    )
-                  : const Icon(Icons.save_outlined),
-              label: Text(
-                capsuleVm.isLoading ? '저장 중...' : '기억 저장하기',
-                style: const TextStyle(fontSize: 16),
-              ),
+    if (_currentPosition != null) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: AppTheme.primaryLight,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.location_on_rounded,
+                size: 11, color: AppTheme.primary),
+            const SizedBox(width: 4),
+            Text(
+              '${_currentPosition!.latitude.toStringAsFixed(4)}, '
+              '${_currentPosition!.longitude.toStringAsFixed(4)}',
+              style: GoogleFonts.notoSans(
+                  fontSize: 11, color: AppTheme.primary),
             ),
           ],
         ),
-      ),
-    );
+      );
+    }
+
+    return const SizedBox.shrink();
   }
 }
