@@ -12,6 +12,7 @@ import '../../domain/entities/capsule.dart';
 import '../../domain/services/location_service.dart';
 import '../theme/app_theme.dart';
 import 'capsule_create_screen.dart';
+import 'capsule_detail_screen.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -65,10 +66,12 @@ class _MapScreenState extends State<MapScreen> {
           markerId: MarkerId(c.id),
           position: LatLng(c.latitude, c.longitude),
           infoWindow: InfoWindow(
-            title: c.memo.length > 20 ? '${c.memo.substring(0, 20)}...' : c.memo,
+            title:
+                c.memo.length > 20 ? '${c.memo.substring(0, 20)}...' : c.memo,
             snippet: DateFormat('yyyy.MM.dd').format(c.createdAt),
           ),
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+          icon:
+              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
         );
       }).toSet();
     });
@@ -241,8 +244,8 @@ class _MapScreenState extends State<MapScreen> {
   Widget _buildCapsuleList(CapsuleViewModel capsuleVm) {
     if (capsuleVm.isLoading) {
       return const SliverFillRemaining(
-        child: Center(
-            child: CircularProgressIndicator(color: AppTheme.primary)),
+        child:
+            Center(child: CircularProgressIndicator(color: AppTheme.primary)),
       );
     }
 
@@ -289,100 +292,122 @@ class _CapsuleCard extends StatelessWidget {
     final month = DateFormat('MMM', 'ko').format(capsule.createdAt);
     final time = DateFormat('HH:mm').format(capsule.createdAt);
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.warmBorder),
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => CapsuleDetailScreen(capsule: capsule),
+        ),
       ),
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // 날짜 사이드바
-            Container(
-              width: 56,
-              decoration: const BoxDecoration(
-                color: AppTheme.primaryLight,
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(15),
-                  bottomLeft: Radius.circular(15),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppTheme.warmBorder),
+        ),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // 날짜 사이드바
+              Container(
+                width: 56,
+                decoration: const BoxDecoration(
+                  color: AppTheme.primaryLight,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(15),
+                    bottomLeft: Radius.circular(15),
+                  ),
                 ),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(day,
-                      style: GoogleFonts.gaegu(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w700,
-                          color: AppTheme.primary)),
-                  Text(month,
-                      style: GoogleFonts.gaegu(
-                          fontSize: 12, color: AppTheme.textMedium)),
-                ],
-              ),
-            ),
-
-            // 내용
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(14),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.location_on_outlined,
-                            size: 12, color: AppTheme.textLight),
-                        const SizedBox(width: 3),
-                        Text(
-                          '${capsule.latitude.toStringAsFixed(3)}, '
-                          '${capsule.longitude.toStringAsFixed(3)}',
-                          style: GoogleFonts.notoSans(
-                              fontSize: 10, color: AppTheme.textLight),
-                        ),
-                        const Spacer(),
-                        Text(time,
-                            style: GoogleFonts.notoSans(
-                                fontSize: 10, color: AppTheme.textLight)),
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: capsule.isPublic
-                                ? AppTheme.primaryLight
-                                : AppTheme.warmBeige,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            capsule.isPublic ? '공개' : '비공개',
-                            style: GoogleFonts.notoSans(
-                              fontSize: 9,
-                              color: capsule.isPublic
-                                  ? AppTheme.primary
-                                  : AppTheme.textLight,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      capsule.memo,
-                      style: GoogleFonts.gaegu(
-                          fontSize: 15,
-                          color: AppTheme.textDark,
-                          height: 1.5),
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    Text(day,
+                        style: GoogleFonts.gaegu(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.primary)),
+                    Text(month,
+                        style: GoogleFonts.gaegu(
+                            fontSize: 12, color: AppTheme.textMedium)),
                   ],
                 ),
               ),
-            ),
-          ],
+
+              // 내용
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.location_on_outlined,
+                              size: 12, color: AppTheme.textLight),
+                          const SizedBox(width: 3),
+                          Text(
+                            '${capsule.latitude.toStringAsFixed(3)}, '
+                            '${capsule.longitude.toStringAsFixed(3)}',
+                            style: GoogleFonts.notoSans(
+                                fontSize: 10, color: AppTheme.textLight),
+                          ),
+                          const Spacer(),
+                          Text(time,
+                              style: GoogleFonts.notoSans(
+                                  fontSize: 10, color: AppTheme.textLight)),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: capsule.isPublic
+                                  ? AppTheme.primaryLight
+                                  : AppTheme.warmBeige,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              capsule.isPublic ? '공개' : '비공개',
+                              style: GoogleFonts.notoSans(
+                                fontSize: 9,
+                                color: capsule.isPublic
+                                    ? AppTheme.primary
+                                    : AppTheme.textLight,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        capsule.memo,
+                        style: GoogleFonts.gaegu(
+                            fontSize: 15,
+                            color: AppTheme.textDark,
+                            height: 1.5),
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 6),
+                      // 탭 유도
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Text(
+                            '자세히 보기 →',
+                            style: GoogleFonts.notoSans(
+                              fontSize: 10,
+                              color: AppTheme.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
