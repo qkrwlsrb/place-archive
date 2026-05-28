@@ -1,7 +1,10 @@
 // [Presentation Layer] — 캡슐 상세 화면 렌더링 담당
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import '../../application/view_models/auth_view_model.dart';
+import '../../application/view_models/capsule_view_model.dart';
 import '../../domain/entities/capsule.dart';
 import '../theme/app_theme.dart';
 
@@ -10,11 +13,65 @@ class CapsuleDetailScreen extends StatelessWidget {
 
   const CapsuleDetailScreen({super.key, required this.capsule});
 
+  Future<void> _confirmDelete(BuildContext context) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('기억 삭제',
+            style: GoogleFonts.gaegu(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.textDark)),
+        content: Text('이 기억을 삭제하면 복구할 수 없어요.\n정말 삭제할까요?',
+            style: GoogleFonts.notoSans(
+                fontSize: 14, color: AppTheme.textMedium, height: 1.5)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('취소',
+                style: GoogleFonts.notoSans(color: AppTheme.textLight)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('삭제',
+                style: GoogleFonts.notoSans(
+                    color: Colors.red, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+    if (!context.mounted) return;
+
+    final success =
+        await context.read<CapsuleViewModel>().deleteCapsule(capsule);
+
+    if (!context.mounted) return;
+
+    if (success) {
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('기억이 삭제되었습니다', style: GoogleFonts.notoSans()),
+          backgroundColor: AppTheme.primary,
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final dateStr =
         DateFormat('yyyy년 M월 d일 EEEE', 'ko').format(capsule.createdAt);
     final timeStr = DateFormat('HH:mm').format(capsule.createdAt);
+    final currentUserId = context.read<AuthViewModel>().user?.uid;
+    final isOwner = currentUserId == capsule.userId;
 
     return Scaffold(
       backgroundColor: AppTheme.warmCream,
@@ -26,27 +83,32 @@ class CapsuleDetailScreen extends StatelessWidget {
               size: 18, color: AppTheme.textMedium),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text(
-          '기억 보기',
-          style: GoogleFonts.gaegu(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: AppTheme.textDark,
-          ),
-        ),
+        title: Text('기억 보기',
+            style: GoogleFonts.gaegu(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.textDark)),
+        actions: [
+          if (isOwner)
+            IconButton(
+              icon: const Icon(Icons.delete_outline_rounded,
+                  color: Colors.red, size: 22),
+              tooltip: '삭제',
+              onPressed: () => _confirmDelete(context),
+            ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 날짜 헤더
             Text(dateStr,
-                style:
-                    GoogleFonts.gaegu(fontSize: 15, color: AppTheme.textMedium)),
+                style: GoogleFonts.gaegu(
+                    fontSize: 15, color: AppTheme.textMedium)),
             Text(timeStr,
-                style:
-                    GoogleFonts.gaegu(fontSize: 13, color: AppTheme.textLight)),
+                style: GoogleFonts.gaegu(
+                    fontSize: 13, color: AppTheme.textLight)),
             const SizedBox(height: 4),
             const Divider(color: AppTheme.warmBorder),
             const SizedBox(height: 16),
@@ -90,7 +152,7 @@ class CapsuleDetailScreen extends StatelessWidget {
               const SizedBox(height: 16),
             ],
 
-            // 메모 본문
+            // 메모
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(20),
@@ -99,15 +161,12 @@ class CapsuleDetailScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: AppTheme.warmBorder),
               ),
-              child: Text(
-                capsule.memo,
-                style: GoogleFonts.gaegu(
-                    fontSize: 18, color: AppTheme.textDark, height: 1.9),
-              ),
+              child: Text(capsule.memo,
+                  style: GoogleFonts.gaegu(
+                      fontSize: 18, color: AppTheme.textDark, height: 1.9)),
             ),
             const SizedBox(height: 20),
 
-            // 위치
             _InfoCard(
               icon: Icons.location_on_outlined,
               label: '위치',
@@ -115,8 +174,6 @@ class CapsuleDetailScreen extends StatelessWidget {
                   '${capsule.latitude.toStringAsFixed(5)}, ${capsule.longitude.toStringAsFixed(5)}',
             ),
             const SizedBox(height: 10),
-
-            // 공개 여부
             _InfoCard(
               icon: capsule.isPublic
                   ? Icons.public_rounded
@@ -127,8 +184,6 @@ class CapsuleDetailScreen extends StatelessWidget {
                   capsule.isPublic ? AppTheme.primary : AppTheme.textLight,
             ),
             const SizedBox(height: 10),
-
-            // 작성일
             _InfoCard(
               icon: Icons.schedule_rounded,
               label: '작성일',
@@ -137,11 +192,9 @@ class CapsuleDetailScreen extends StatelessWidget {
             const SizedBox(height: 32),
 
             Center(
-              child: Text(
-                '✦  이 기억은 이곳에 영원히 남아있어요  ✦',
-                style: GoogleFonts.gaegu(
-                    fontSize: 13, color: AppTheme.textLight),
-              ),
+              child: Text('✦  이 기억은 이곳에 영원히 남아있어요  ✦',
+                  style: GoogleFonts.gaegu(
+                      fontSize: 13, color: AppTheme.textLight)),
             ),
           ],
         ),
@@ -194,17 +247,15 @@ class _InfoCard extends StatelessWidget {
           const Spacer(),
           Text(value,
               style: GoogleFonts.notoSans(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: valueColor ?? AppTheme.textDark,
-              )),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: valueColor ?? AppTheme.textDark)),
         ],
       ),
     );
   }
 }
 
-// 사진 전체보기 화면
 class _FullImageViewer extends StatefulWidget {
   final List<String> urls;
   final int initialIndex;
@@ -233,10 +284,8 @@ class _FullImageViewerState extends State<_FullImageViewer> {
       appBar: AppBar(
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
-        title: Text(
-          '${_currentIndex + 1} / ${widget.urls.length}',
-          style: GoogleFonts.notoSans(color: Colors.white),
-        ),
+        title: Text('${_currentIndex + 1} / ${widget.urls.length}',
+            style: GoogleFonts.notoSans(color: Colors.white)),
       ),
       body: PageView.builder(
         controller: _pageController,
@@ -245,10 +294,7 @@ class _FullImageViewerState extends State<_FullImageViewer> {
         itemBuilder: (context, index) {
           return InteractiveViewer(
             child: Center(
-              child: Image.network(
-                widget.urls[index],
-                fit: BoxFit.contain,
-              ),
+              child: Image.network(widget.urls[index], fit: BoxFit.contain),
             ),
           );
         },

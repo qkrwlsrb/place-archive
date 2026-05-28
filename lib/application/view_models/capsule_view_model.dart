@@ -8,17 +8,19 @@ class CapsuleViewModel extends ChangeNotifier {
   final CapsuleRepository _repo;
 
   List<Capsule> _capsules = [];
+  List<Capsule> _publicCapsules = [];
   bool _isLoading = false;
   String? _error;
   StreamSubscription<List<Capsule>>? _capsulesub;
+  StreamSubscription<List<Capsule>>? _publicSub;
 
   CapsuleViewModel(this._repo);
 
   List<Capsule> get capsules => _capsules;
+  List<Capsule> get publicCapsules => _publicCapsules;
   bool get isLoading => _isLoading;
   String? get error => _error;
 
-  /// 로그인 후 해당 유저의 캡슐을 실시간으로 구독
   void startWatching(String userId) {
     _isLoading = true;
     notifyListeners();
@@ -39,10 +41,21 @@ class CapsuleViewModel extends ChangeNotifier {
     );
   }
 
-  /// 구독 종료 (로그아웃 시 호출)
+  void startWatchingPublic() {
+    _publicSub?.cancel();
+    _publicSub = _repo.watchPublicCapsules().listen(
+      (capsules) {
+        _publicCapsules = capsules;
+        notifyListeners();
+      },
+    );
+  }
+
   void stopWatching() {
     _capsulesub?.cancel();
+    _publicSub?.cancel();
     _capsules = [];
+    _publicCapsules = [];
     _isLoading = false;
     notifyListeners();
   }
@@ -53,7 +66,6 @@ class CapsuleViewModel extends ChangeNotifier {
     notifyListeners();
     try {
       await _repo.createCapsule(capsule);
-      // 성공 시 Firestore 스트림이 자동으로 목록을 업데이트함
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -62,9 +74,21 @@ class CapsuleViewModel extends ChangeNotifier {
     }
   }
 
+  Future<bool> deleteCapsule(Capsule capsule) async {
+    try {
+      await _repo.deleteCapsule(capsule);
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
   @override
   void dispose() {
     _capsulesub?.cancel();
+    _publicSub?.cancel();
     super.dispose();
   }
 }
