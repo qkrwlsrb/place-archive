@@ -12,7 +12,8 @@ class CapsuleDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dateStr = DateFormat('yyyy년 M월 d일 EEEE', 'ko').format(capsule.createdAt);
+    final dateStr =
+        DateFormat('yyyy년 M월 d일 EEEE', 'ko').format(capsule.createdAt);
     final timeStr = DateFormat('HH:mm').format(capsule.createdAt);
 
     return Scaffold(
@@ -40,23 +41,54 @@ class CapsuleDetailScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // 날짜 헤더
-            Text(
-              dateStr,
-              style: GoogleFonts.gaegu(
-                fontSize: 15,
-                color: AppTheme.textMedium,
-              ),
-            ),
-            Text(
-              timeStr,
-              style: GoogleFonts.gaegu(
-                fontSize: 13,
-                color: AppTheme.textLight,
-              ),
-            ),
+            Text(dateStr,
+                style:
+                    GoogleFonts.gaegu(fontSize: 15, color: AppTheme.textMedium)),
+            Text(timeStr,
+                style:
+                    GoogleFonts.gaegu(fontSize: 13, color: AppTheme.textLight)),
             const SizedBox(height: 4),
             const Divider(color: AppTheme.warmBorder),
             const SizedBox(height: 16),
+
+            // 사진 갤러리
+            if (capsule.photoUrls.isNotEmpty) ...[
+              SizedBox(
+                height: 200,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: capsule.photoUrls.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 10),
+                  itemBuilder: (context, index) {
+                    return GestureDetector(
+                      onTap: () => _showFullImage(context, index),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(14),
+                        child: Image.network(
+                          capsule.photoUrls[index],
+                          width: 200,
+                          height: 200,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (context, child, progress) {
+                            if (progress == null) return child;
+                            return Container(
+                              width: 200,
+                              height: 200,
+                              color: AppTheme.warmBeige,
+                              child: const Center(
+                                child: CircularProgressIndicator(
+                                    color: AppTheme.primary),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
 
             // 메모 본문
             Container(
@@ -70,15 +102,12 @@ class CapsuleDetailScreen extends StatelessWidget {
               child: Text(
                 capsule.memo,
                 style: GoogleFonts.gaegu(
-                  fontSize: 18,
-                  color: AppTheme.textDark,
-                  height: 1.9,
-                ),
+                    fontSize: 18, color: AppTheme.textDark, height: 1.9),
               ),
             ),
             const SizedBox(height: 20),
 
-            // 위치 정보
+            // 위치
             _InfoCard(
               icon: Icons.location_on_outlined,
               label: '위치',
@@ -107,17 +136,26 @@ class CapsuleDetailScreen extends StatelessWidget {
             ),
             const SizedBox(height: 32),
 
-            // 하단 장식
             Center(
               child: Text(
                 '✦  이 기억은 이곳에 영원히 남아있어요  ✦',
                 style: GoogleFonts.gaegu(
-                  fontSize: 13,
-                  color: AppTheme.textLight,
-                ),
+                    fontSize: 13, color: AppTheme.textLight),
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  void _showFullImage(BuildContext context, int initialIndex) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => _FullImageViewer(
+          urls: capsule.photoUrls,
+          initialIndex: initialIndex,
         ),
       ),
     );
@@ -150,23 +188,70 @@ class _InfoCard extends StatelessWidget {
         children: [
           Icon(icon, size: 18, color: AppTheme.textLight),
           const SizedBox(width: 12),
-          Text(
-            label,
-            style: GoogleFonts.notoSans(
-              fontSize: 13,
-              color: AppTheme.textLight,
-            ),
-          ),
+          Text(label,
+              style: GoogleFonts.notoSans(
+                  fontSize: 13, color: AppTheme.textLight)),
           const Spacer(),
-          Text(
-            value,
-            style: GoogleFonts.notoSans(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: valueColor ?? AppTheme.textDark,
-            ),
-          ),
+          Text(value,
+              style: GoogleFonts.notoSans(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: valueColor ?? AppTheme.textDark,
+              )),
         ],
+      ),
+    );
+  }
+}
+
+// 사진 전체보기 화면
+class _FullImageViewer extends StatefulWidget {
+  final List<String> urls;
+  final int initialIndex;
+
+  const _FullImageViewer({required this.urls, required this.initialIndex});
+
+  @override
+  State<_FullImageViewer> createState() => _FullImageViewerState();
+}
+
+class _FullImageViewerState extends State<_FullImageViewer> {
+  late PageController _pageController;
+  late int _currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+    _pageController = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        title: Text(
+          '${_currentIndex + 1} / ${widget.urls.length}',
+          style: GoogleFonts.notoSans(color: Colors.white),
+        ),
+      ),
+      body: PageView.builder(
+        controller: _pageController,
+        itemCount: widget.urls.length,
+        onPageChanged: (i) => setState(() => _currentIndex = i),
+        itemBuilder: (context, index) {
+          return InteractiveViewer(
+            child: Center(
+              child: Image.network(
+                widget.urls[index],
+                fit: BoxFit.contain,
+              ),
+            ),
+          );
+        },
       ),
     );
   }

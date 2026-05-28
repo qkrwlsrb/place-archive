@@ -1,9 +1,13 @@
 // [Presentation Layer] — 캡슐 생성 화면 렌더링 담당
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../application/view_models/auth_view_model.dart';
 import '../../application/view_models/capsule_view_model.dart';
 import '../../domain/entities/capsule.dart';
@@ -20,11 +24,14 @@ class CapsuleCreateScreen extends StatefulWidget {
 class _CapsuleCreateScreenState extends State<CapsuleCreateScreen> {
   final _memoController = TextEditingController();
   final _locationService = LocationService();
+  final _picker = ImagePicker();
 
   bool _isPublic = false;
   bool _locationLoading = false;
+  bool _uploading = false;
   Position? _currentPosition;
   String? _locationError;
+  List<XFile> _selectedImages = [];
 
   @override
   void initState() {
@@ -53,6 +60,46 @@ class _CapsuleCreateScreenState extends State<CapsuleCreateScreen> {
     }
   }
 
+  Future<void> _pickImages() async {
+    final images = await _picker.pickMultiImage(imageQuality: 70);
+    if (images.isEmpty) return;
+    setState(() {
+      // 최대 4장
+      _selectedImages = [..._selectedImages, ...images].take(4).toList();
+    });
+  }
+
+  Future<void> _pickFromCamera() async {
+    final image = await _picker.pickImage(
+      source: ImageSource.camera,
+      imageQuality: 70,
+    );
+    if (image == null) return;
+    setState(() {
+      _selectedImages = [..._selectedImages, image].take(4).toList();
+    });
+  }
+
+  void _removeImage(int index) {
+    setState(() => _selectedImages.removeAt(index));
+  }
+
+  Future<List<String>> _uploadImages(String userId) async {
+    final storage = FirebaseStorage.instance;
+    final urls = <String>[];
+
+    for (final image in _selectedImages) {
+      final file = File(image.path);
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}_${image.name}';
+      final ref = storage.ref('capsules/$userId/$fileName');
+      await ref.putFile(file);
+      final url = await ref.getDownloadURL();
+      urls.add(url);
+    }
+
+    return urls;
+  }
+
   Future<void> _save() async {
     if (_memoController.text.trim().isEmpty) {
       _showSnackBar('기억을 입력해주세요');
@@ -63,27 +110,39 @@ class _CapsuleCreateScreenState extends State<CapsuleCreateScreen> {
       return;
     }
 
-    final capsuleVm = context.read<CapsuleViewModel>();
-    final authVm = context.read<AuthViewModel>();
+    setState(() => _uploading = true);
 
-    final capsule = Capsule(
-      id: '',
-      userId: authVm.user!.uid,
-      latitude: _currentPosition!.latitude,
-      longitude: _currentPosition!.longitude,
-      memo: _memoController.text.trim(),
-      photoUrls: [],
-      isPublic: _isPublic,
-      createdAt: DateTime.now(),
-    );
+    try {
+      final capsuleVm = context.read<CapsuleViewModel>();
+      final authVm = context.read<AuthViewModel>();
+      final userId = authVm.user!.uid;
 
-    await capsuleVm.createCapsule(capsule);
-    if (!mounted) return;
+      // 사진 업로드
+      final photoUrls = await _uploadImages(userId);
 
-    if (capsuleVm.error != null) {
-      _showSnackBar('저장 실패: ${capsuleVm.error}');
-    } else {
-      Navigator.of(context).pop();
+      final capsule = Capsule(
+        id: '',
+        userId: userId,
+        latitude: _currentPosition!.latitude,
+        longitude: _currentPosition!.longitude,
+        memo: _memoController.text.trim(),
+        photoUrls: photoUrls,
+        isPublic: _isPublic,
+        createdAt: DateTime.now(),
+      );
+
+      await capsuleVm.createCapsule(capsule);
+      if (!mounted) return;
+
+      if (capsuleVm.error != null) {
+        _showSnackBar('저장 실패: ${capsuleVm.error}');
+      } else {
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      _showSnackBar('업로드 실패: $e');
+    } finally {
+      if (mounted) setState(() => _uploading = false);
     }
   }
 
@@ -101,6 +160,7 @@ class _CapsuleCreateScreenState extends State<CapsuleCreateScreen> {
   @override
   Widget build(BuildContext context) {
     final capsuleVm = context.watch<CapsuleViewModel>();
+    final isSaving = capsuleVm.isLoading || _uploading;
     final dateStr = DateFormat('yyyy년 M월 d일', 'ko').format(DateTime.now());
 
     return Scaffold(
@@ -125,16 +185,15 @@ class _CapsuleCreateScreenState extends State<CapsuleCreateScreen> {
           Padding(
             padding: const EdgeInsets.only(right: 12),
             child: TextButton(
-              onPressed: capsuleVm.isLoading ? null : _save,
+              onPressed: isSaving ? null : _save,
               style: TextButton.styleFrom(
                 backgroundColor: AppTheme.primary,
                 foregroundColor: Colors.white,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20)),
               ),
-              child: capsuleVm.isLoading
+              child: isSaving
                   ? const SizedBox(
                       height: 16,
                       width: 16,
@@ -151,14 +210,12 @@ class _CapsuleCreateScreenState extends State<CapsuleCreateScreen> {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          // 날짜 + 위치 정보
+          // 날짜 + 위치
           Row(
             children: [
-              Text(
-                dateStr,
-                style: GoogleFonts.gaegu(
-                    fontSize: 15, color: AppTheme.textMedium),
-              ),
+              Text(dateStr,
+                  style: GoogleFonts.gaegu(
+                      fontSize: 15, color: AppTheme.textMedium)),
               const SizedBox(width: 8),
               _buildLocationBadge(),
             ],
@@ -167,7 +224,7 @@ class _CapsuleCreateScreenState extends State<CapsuleCreateScreen> {
           const Divider(color: AppTheme.warmBorder, thickness: 1),
           const SizedBox(height: 12),
 
-          // 텍스트 입력
+          // 메모 입력
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
@@ -177,13 +234,10 @@ class _CapsuleCreateScreenState extends State<CapsuleCreateScreen> {
             padding: const EdgeInsets.all(16),
             child: TextField(
               controller: _memoController,
-              maxLines: 12,
+              maxLines: 8,
               maxLength: 500,
               style: GoogleFonts.gaegu(
-                fontSize: 17,
-                color: AppTheme.textDark,
-                height: 1.8,
-              ),
+                  fontSize: 17, color: AppTheme.textDark, height: 1.8),
               decoration: InputDecoration(
                 hintText:
                     '이 장소에서 어떤 기억을 남기고 싶으신가요?\n\n오늘의 날씨, 함께한 사람, 그때의 감정을 적어보세요 ✦',
@@ -200,6 +254,55 @@ class _CapsuleCreateScreenState extends State<CapsuleCreateScreen> {
           ),
           const SizedBox(height: 16),
 
+          // 사진 섹션
+          Row(
+            children: [
+              Text('사진 추가',
+                  style: GoogleFonts.gaegu(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textDark)),
+              const SizedBox(width: 6),
+              Text('(최대 4장)',
+                  style: GoogleFonts.notoSans(
+                      fontSize: 11, color: AppTheme.textLight)),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          // 사진 그리드
+          SizedBox(
+            height: 100,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                // 추가 버튼
+                if (_selectedImages.length < 4) ...[
+                  _buildAddPhotoButton(
+                    icon: Icons.photo_library_outlined,
+                    label: '갤러리',
+                    onTap: _pickImages,
+                  ),
+                  const SizedBox(width: 8),
+                  _buildAddPhotoButton(
+                    icon: Icons.camera_alt_outlined,
+                    label: '카메라',
+                    onTap: _pickFromCamera,
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                // 선택된 사진들
+                ..._selectedImages.asMap().entries.map((entry) {
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: _buildImagePreview(entry.key, entry.value),
+                  );
+                }),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
           // 공개 여부
           Container(
             decoration: BoxDecoration(
@@ -208,18 +311,14 @@ class _CapsuleCreateScreenState extends State<CapsuleCreateScreen> {
               border: Border.all(color: AppTheme.warmBorder),
             ),
             child: SwitchListTile(
-              title: Text(
-                '공개 기억',
-                style: GoogleFonts.gaegu(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textDark),
-              ),
-              subtitle: Text(
-                '다른 사람도 이 기억을 볼 수 있어요',
-                style: GoogleFonts.notoSans(
-                    fontSize: 12, color: AppTheme.textLight),
-              ),
+              title: Text('공개 기억',
+                  style: GoogleFonts.gaegu(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textDark)),
+              subtitle: Text('다른 사람도 이 기억을 볼 수 있어요',
+                  style: GoogleFonts.notoSans(
+                      fontSize: 12, color: AppTheme.textLight)),
               value: _isPublic,
               activeColor: AppTheme.primary,
               onChanged: (v) => setState(() => _isPublic = v),
@@ -229,28 +328,87 @@ class _CapsuleCreateScreenState extends State<CapsuleCreateScreen> {
 
           // 저장 버튼
           GestureDetector(
-            onTap: capsuleVm.isLoading ? null : _save,
+            onTap: isSaving ? null : _save,
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 15),
               decoration: BoxDecoration(
-                color: capsuleVm.isLoading
-                    ? AppTheme.warmBeige
-                    : AppTheme.primary,
+                color: isSaving ? AppTheme.warmBeige : AppTheme.primary,
                 borderRadius: BorderRadius.circular(14),
               ),
               alignment: Alignment.center,
               child: Text(
-                capsuleVm.isLoading ? '저장 중...' : '✦  이 기억 저장하기',
+                isSaving
+                    ? (_uploading ? '사진 업로드 중...' : '저장 중...')
+                    : '✦  이 기억 저장하기',
                 style: GoogleFonts.gaegu(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                ),
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white),
               ),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildAddPhotoButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 100,
+        height: 100,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppTheme.warmBorder),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: AppTheme.textLight, size: 28),
+            const SizedBox(height: 4),
+            Text(label,
+                style: GoogleFonts.notoSans(
+                    fontSize: 11, color: AppTheme.textLight)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImagePreview(int index, XFile image) {
+    return Stack(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Image.file(
+            File(image.path),
+            width: 100,
+            height: 100,
+            fit: BoxFit.cover,
+          ),
+        ),
+        Positioned(
+          top: 4,
+          right: 4,
+          child: GestureDetector(
+            onTap: () => _removeImage(index),
+            child: Container(
+              padding: const EdgeInsets.all(2),
+              decoration: const BoxDecoration(
+                color: Colors.black54,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.close, size: 14, color: Colors.white),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -321,8 +479,8 @@ class _CapsuleCreateScreenState extends State<CapsuleCreateScreen> {
             Text(
               '${_currentPosition!.latitude.toStringAsFixed(4)}, '
               '${_currentPosition!.longitude.toStringAsFixed(4)}',
-              style: GoogleFonts.notoSans(
-                  fontSize: 11, color: AppTheme.primary),
+              style:
+                  GoogleFonts.notoSans(fontSize: 11, color: AppTheme.primary),
             ),
           ],
         ),
