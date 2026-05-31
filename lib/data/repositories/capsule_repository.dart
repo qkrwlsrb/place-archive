@@ -8,7 +8,6 @@ class CapsuleRepository {
   final FirebaseStorage _storage = FirebaseStorage.instance;
   static const _collection = 'capsules';
 
-  /// 내 캡슐 실시간 스트림 (최신순)
   Stream<List<Capsule>> watchUserCapsules(String userId) {
     return _db
         .collection(_collection)
@@ -22,7 +21,6 @@ class CapsuleRepository {
         );
   }
 
-  /// 공개 캡슐 실시간 스트림 (최신순)
   Stream<List<Capsule>> watchPublicCapsules() {
     return _db
         .collection(_collection)
@@ -37,25 +35,27 @@ class CapsuleRepository {
         );
   }
 
-  /// 캡슐 생성
   Future<void> createCapsule(Capsule capsule) async {
     final data = capsule.toJson()..remove('id');
     await _db.collection(_collection).add(data);
   }
 
-  /// 캡슐 삭제 (사진도 Storage에서 함께 삭제)
-  Future<void> deleteCapsule(Capsule capsule) async {
-    // Firestore 문서 삭제
-    await _db.collection(_collection).doc(capsule.id).delete();
+  /// 캡슐 수정 (메모, 공개여부만 수정 가능)
+  Future<void> updateCapsule(String capsuleId,
+      {required String memo, required bool isPublic}) async {
+    await _db.collection(_collection).doc(capsuleId).update({
+      'memo': memo,
+      'isPublic': isPublic,
+    });
+  }
 
-    // Storage 사진 삭제
+  Future<void> deleteCapsule(Capsule capsule) async {
+    await _db.collection(_collection).doc(capsule.id).delete();
     for (final url in capsule.photoUrls) {
       try {
         final ref = _storage.refFromURL(url);
         await ref.delete();
-      } catch (_) {
-        // 사진 삭제 실패해도 계속 진행
-      }
+      } catch (_) {}
     }
   }
 }

@@ -24,7 +24,6 @@ class CapsuleViewModel extends ChangeNotifier {
   void startWatching(String userId) {
     _isLoading = true;
     notifyListeners();
-
     _capsulesub?.cancel();
     _capsulesub = _repo.watchUserCapsules(userId).listen(
       (capsules) {
@@ -71,6 +70,18 @@ class CapsuleViewModel extends ChangeNotifier {
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  Future<bool> updateCapsule(String capsuleId,
+      {required String memo, required bool isPublic}) async {
+    try {
+      await _repo.updateCapsule(capsuleId, memo: memo, isPublic: isPublic);
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      return false;
     }
   }
 

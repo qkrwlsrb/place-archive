@@ -7,6 +7,7 @@ import '../../application/view_models/auth_view_model.dart';
 import '../../application/view_models/capsule_view_model.dart';
 import '../../domain/entities/capsule.dart';
 import '../theme/app_theme.dart';
+import 'capsule_edit_screen.dart';
 
 class CapsuleDetailScreen extends StatelessWidget {
   final Capsule capsule;
@@ -89,13 +90,25 @@ class CapsuleDetailScreen extends StatelessWidget {
                 fontWeight: FontWeight.w700,
                 color: AppTheme.textDark)),
         actions: [
-          if (isOwner)
+          if (isOwner) ...[
+            IconButton(
+              icon: const Icon(Icons.edit_outlined,
+                  color: AppTheme.primary, size: 22),
+              tooltip: '수정',
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => CapsuleEditScreen(capsule: capsule),
+                ),
+              ),
+            ),
             IconButton(
               icon: const Icon(Icons.delete_outline_rounded,
                   color: Colors.red, size: 22),
               tooltip: '삭제',
               onPressed: () => _confirmDelete(context),
             ),
+          ],
         ],
       ),
       body: SingleChildScrollView(
@@ -113,7 +126,6 @@ class CapsuleDetailScreen extends StatelessWidget {
             const Divider(color: AppTheme.warmBorder),
             const SizedBox(height: 16),
 
-            // 사진 갤러리
             if (capsule.photoUrls.isNotEmpty) ...[
               SizedBox(
                 height: 200,
@@ -152,7 +164,6 @@ class CapsuleDetailScreen extends StatelessWidget {
               const SizedBox(height: 16),
             ],
 
-            // 메모
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(20),
