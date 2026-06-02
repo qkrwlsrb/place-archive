@@ -9,6 +9,7 @@ import 'data/repositories/capsule_repository.dart';
 import 'presentation/screens/login_screen.dart';
 import 'presentation/screens/map_screen.dart';
 import 'presentation/screens/feed_screen.dart';
+import 'presentation/screens/search_screen.dart';
 import 'presentation/theme/app_theme.dart';
 
 class PlaceArchiveApp extends StatelessWidget {
@@ -67,6 +68,7 @@ class _MainScreenState extends State<MainScreen> {
 
   final _screens = const [
     MapScreen(),
+    SearchScreen(),
     FeedScreen(),
   ];
 
@@ -92,6 +94,11 @@ class _MainScreenState extends State<MainScreen> {
             icon: Icon(Icons.map_outlined),
             activeIcon: Icon(Icons.map_rounded),
             label: '내 기억',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.search_outlined),
+            activeIcon: Icon(Icons.search_rounded),
+            label: '검색',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.people_outline_rounded),
