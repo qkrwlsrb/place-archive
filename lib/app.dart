@@ -10,6 +10,7 @@ import 'presentation/screens/login_screen.dart';
 import 'presentation/screens/map_screen.dart';
 import 'presentation/screens/feed_screen.dart';
 import 'presentation/screens/search_screen.dart';
+import 'presentation/screens/profile_screen.dart';
 import 'presentation/theme/app_theme.dart';
 
 class PlaceArchiveApp extends StatelessWidget {
@@ -70,6 +71,7 @@ class _MainScreenState extends State<MainScreen> {
     MapScreen(),
     SearchScreen(),
     FeedScreen(),
+    ProfileScreen(),
   ];
 
   @override
@@ -89,6 +91,7 @@ class _MainScreenState extends State<MainScreen> {
             fontSize: 12, fontWeight: FontWeight.w600),
         unselectedLabelStyle: GoogleFonts.gaegu(fontSize: 12),
         elevation: 8,
+        type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.map_outlined),
@@ -104,6 +107,11 @@ class _MainScreenState extends State<MainScreen> {
             icon: Icon(Icons.people_outline_rounded),
             activeIcon: Icon(Icons.people_rounded),
             label: '모두의 기억',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline_rounded),
+            activeIcon: Icon(Icons.person_rounded),
+            label: '프로필',
           ),
         ],
       ),
