@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../application/view_models/auth_view_model.dart';
 import '../../application/view_models/capsule_view_model.dart';
 import '../theme/app_theme.dart';
+import 'settings_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -20,10 +21,8 @@ class ProfileScreen extends StatelessWidget {
     final totalCapsules = capsules.length;
     final publicCount = capsules.where((c) => c.isPublic).length;
     final privateCount = capsules.where((c) => !c.isPublic).length;
-    final photoCount = capsules.fold<int>(
-        0, (sum, c) => sum + c.photoUrls.length);
-
-    // 가장 최근 캡슐
+    final photoCount =
+        capsules.fold<int>(0, (sum, c) => sum + c.photoUrls.length);
     final lastCapsule = capsules.isNotEmpty ? capsules.first : null;
 
     return Scaffold(
@@ -36,23 +35,21 @@ class ProfileScreen extends StatelessWidget {
             snap: true,
             elevation: 0,
             scrolledUnderElevation: 0,
-            title: Text(
-              '내 프로필',
-              style: GoogleFonts.gaegu(
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-                color: AppTheme.textDark,
-              ),
-            ),
+            title: Text('내 프로필',
+                style: GoogleFonts.gaegu(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.textDark)),
             actions: [
               IconButton(
-                icon: const Icon(Icons.logout_rounded,
-                    size: 20, color: AppTheme.textLight),
-                tooltip: '로그아웃',
-                onPressed: () async {
-                  capsuleVm.stopWatching();
-                  await auth.signOut();
-                },
+                icon: const Icon(Icons.settings_outlined,
+                    size: 22, color: AppTheme.textMedium),
+                tooltip: '환경설정',
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const SettingsScreen()),
+                ),
               ),
             ],
           ),
@@ -63,78 +60,38 @@ class ProfileScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 프로필 카드
                   _buildProfileCard(user?.email ?? ''),
                   const SizedBox(height: 20),
 
-                  // 통계
-                  Text(
-                    '나의 기억 통계',
-                    style: GoogleFonts.gaegu(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.textDark,
-                    ),
-                  ),
+                  Text('나의 기억 통계',
+                      style: GoogleFonts.gaegu(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.textDark)),
                   const SizedBox(height: 12),
                   _buildStatsGrid(
-                    totalCapsules, publicCount, privateCount, photoCount),
+                      totalCapsules, publicCount, privateCount, photoCount),
                   const SizedBox(height: 24),
 
-                  // 최근 기억
                   if (lastCapsule != null) ...[
-                    Text(
-                      '가장 최근 기억',
-                      style: GoogleFonts.gaegu(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: AppTheme.textDark,
-                      ),
-                    ),
+                    Text('가장 최근 기억',
+                        style: GoogleFonts.gaegu(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.textDark)),
                     const SizedBox(height: 12),
                     _buildLastCapsuleCard(lastCapsule.memo,
                         lastCapsule.createdAt, lastCapsule.photoUrls.isNotEmpty),
                     const SizedBox(height: 24),
                   ],
 
-                  // 계정 정보
-                  Text(
-                    '계정 정보',
-                    style: GoogleFonts.gaegu(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.textDark,
-                    ),
-                  ),
+                  Text('계정 정보',
+                      style: GoogleFonts.gaegu(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.textDark)),
                   const SizedBox(height: 12),
                   _buildAccountInfo(user?.email ?? '', user?.uid ?? ''),
-                  const SizedBox(height: 32),
-
-                  // 로그아웃 버튼
-                  GestureDetector(
-                    onTap: () async {
-                      capsuleVm.stopWatching();
-                      await auth.signOut();
-                    },
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: Colors.red[200]!),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        '로그아웃',
-                        style: GoogleFonts.gaegu(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.red[400],
-                        ),
-                      ),
-                    ),
-                  ),
                   const SizedBox(height: 80),
                 ],
               ),
@@ -147,7 +104,6 @@ class ProfileScreen extends StatelessWidget {
 
   Widget _buildProfileCard(String email) {
     final initial = email.isNotEmpty ? email[0].toUpperCase() : '?';
-
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -157,45 +113,32 @@ class ProfileScreen extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // 아바타
           Container(
             width: 64,
             height: 64,
-            decoration: BoxDecoration(
-              color: AppTheme.primary,
-              shape: BoxShape.circle,
-            ),
+            decoration: const BoxDecoration(
+                color: AppTheme.primary, shape: BoxShape.circle),
             alignment: Alignment.center,
-            child: Text(
-              initial,
-              style: GoogleFonts.gaegu(
-                fontSize: 28,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-              ),
-            ),
+            child: Text(initial,
+                style: GoogleFonts.gaegu(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white)),
           ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  email.split('@').first,
-                  style: GoogleFonts.gaegu(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    color: AppTheme.textDark,
-                  ),
-                ),
+                Text(email.split('@').first,
+                    style: GoogleFonts.gaegu(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.textDark)),
                 const SizedBox(height: 4),
-                Text(
-                  email,
-                  style: GoogleFonts.notoSans(
-                    fontSize: 12,
-                    color: AppTheme.textLight,
-                  ),
-                ),
+                Text(email,
+                    style: GoogleFonts.notoSans(
+                        fontSize: 12, color: AppTheme.textLight)),
               ],
             ),
           ),
@@ -204,8 +147,7 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStatsGrid(
-      int total, int pub, int priv, int photos) {
+  Widget _buildStatsGrid(int total, int pub, int priv, int photos) {
     return GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
@@ -222,10 +164,8 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildLastCapsuleCard(
-      String memo, DateTime date, bool hasPhoto) {
+  Widget _buildLastCapsuleCard(String memo, DateTime date, bool hasPhoto) {
     final dateStr = DateFormat('yyyy년 M월 d일', 'ko').format(date);
-
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -238,25 +178,19 @@ class ProfileScreen extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text(
-                dateStr,
-                style: GoogleFonts.notoSans(
-                    fontSize: 12, color: AppTheme.textMedium),
-              ),
+              Text(dateStr,
+                  style: GoogleFonts.notoSans(
+                      fontSize: 12, color: AppTheme.textMedium)),
               const Spacer(),
-              if (hasPhoto)
-                const Text('📷',
-                    style: TextStyle(fontSize: 14)),
+              if (hasPhoto) const Text('📷', style: TextStyle(fontSize: 14)),
             ],
           ),
           const SizedBox(height: 8),
-          Text(
-            memo,
-            style: GoogleFonts.gaegu(
-                fontSize: 16, color: AppTheme.textDark, height: 1.5),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
+          Text(memo,
+              style: GoogleFonts.gaegu(
+                  fontSize: 16, color: AppTheme.textDark, height: 1.5),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis),
         ],
       ),
     );
@@ -275,9 +209,7 @@ class ProfileScreen extends StatelessWidget {
           const Divider(height: 1, color: AppTheme.warmBorder),
           _InfoRow(
               label: '사용자 ID',
-              value: uid.length > 12
-                  ? '${uid.substring(0, 12)}...'
-                  : uid),
+              value: uid.length > 12 ? '${uid.substring(0, 12)}...' : uid),
         ],
       ),
     );
@@ -289,11 +221,8 @@ class _StatCard extends StatelessWidget {
   final String label;
   final String value;
 
-  const _StatCard({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
+  const _StatCard(
+      {required this.icon, required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {

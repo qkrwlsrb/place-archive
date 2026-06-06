@@ -1,6 +1,8 @@
 // [Presentation Layer] — 지도/기억 목록 화면 렌더링 담당
 import 'dart:async';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -27,12 +29,14 @@ class _MapScreenState extends State<MapScreen> {
 
   Position? _currentPosition;
   Set<Marker> _markers = {};
+  BitmapDescriptor? _customMarker;
 
-  static const _defaultPosition = LatLng(37.5665, 126.9780); // 서울 기본값
+  static const _defaultPosition = LatLng(37.5665, 126.9780);
 
   @override
   void initState() {
     super.initState();
+    _createCustomMarker();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final userId = context.read<AuthViewModel>().user?.uid;
       if (userId != null) {
@@ -40,6 +44,65 @@ class _MapScreenState extends State<MapScreen> {
       }
       _initLocation();
     });
+  }
+
+  /// 커스텀 마커 생성 — 따뜻한 원형 핀
+  Future<void> _createCustomMarker() async {
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    const size = 80.0;
+
+    final paint = Paint()..color = const Color(0xFFB87A50);
+    final shadowPaint = Paint()
+      ..color = Colors.black.withOpacity(0.15)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
+
+    // 그림자
+    canvas.drawCircle(
+        const Offset(size / 2, size / 2 + 3), 22, shadowPaint);
+
+    // 원형 배경
+    canvas.drawCircle(const Offset(size / 2, size / 2), 22, paint);
+
+    // 흰색 테두리
+    canvas.drawCircle(
+      const Offset(size / 2, size / 2),
+      22,
+      Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3,
+    );
+
+    // 하트 아이콘 텍스트
+    final textPainter = TextPainter(
+      text: const TextSpan(
+        text: '✦',
+        style: TextStyle(fontSize: 20, color: Colors.white),
+      ),
+      textDirection: TextDirection.ltr,
+    );
+    textPainter.layout();
+    textPainter.paint(
+      canvas,
+      Offset(
+        size / 2 - textPainter.width / 2,
+        size / 2 - textPainter.height / 2,
+      ),
+    );
+
+    final picture = recorder.endRecording();
+    final image =
+        await picture.toImage(size.toInt(), size.toInt());
+    final bytes =
+        await image.toByteData(format: ui.ImageByteFormat.png);
+
+    if (bytes != null) {
+      setState(() {
+        _customMarker =
+            BitmapDescriptor.fromBytes(bytes.buffer.asUint8List());
+      });
+    }
   }
 
   Future<void> _initLocation() async {
@@ -54,24 +117,23 @@ class _MapScreenState extends State<MapScreen> {
           15,
         ),
       );
-    } catch (_) {
-      // 위치 권한 거부 시 서울 기본값 유지
-    }
+    } catch (_) {}
   }
 
   void _updateMarkers(List<Capsule> capsules) {
+    final marker = _customMarker ?? BitmapDescriptor.defaultMarkerWithHue(30);
     setState(() {
       _markers = capsules.map((c) {
         return Marker(
           markerId: MarkerId(c.id),
           position: LatLng(c.latitude, c.longitude),
+          icon: marker,
           infoWindow: InfoWindow(
-            title:
-                c.memo.length > 20 ? '${c.memo.substring(0, 20)}...' : c.memo,
+            title: c.memo.length > 20
+                ? '${c.memo.substring(0, 20)}...'
+                : c.memo,
             snippet: DateFormat('yyyy.MM.dd').format(c.createdAt),
           ),
-          icon:
-              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
         );
       }).toSet();
     });
@@ -83,7 +145,6 @@ class _MapScreenState extends State<MapScreen> {
     final capsuleVm = context.watch<CapsuleViewModel>();
     final email = auth.user?.email ?? '';
 
-    // 캡슐 목록 변경 시 마커 업데이트
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _updateMarkers(capsuleVm.capsules);
     });
@@ -92,26 +153,21 @@ class _MapScreenState extends State<MapScreen> {
       backgroundColor: AppTheme.warmCream,
       body: CustomScrollView(
         slivers: [
-          // 앱바
           SliverAppBar(
             backgroundColor: AppTheme.warmCream,
             floating: true,
             snap: true,
             elevation: 0,
             scrolledUnderElevation: 0,
-            title: Text(
-              '장소 기억 아카이브',
-              style: GoogleFonts.gaegu(
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-                color: AppTheme.textDark,
-              ),
-            ),
+            title: Text('장소 기억 아카이브',
+                style: GoogleFonts.gaegu(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.textDark)),
             actions: [
               IconButton(
                 icon: const Icon(Icons.logout_rounded, size: 20),
                 color: AppTheme.textLight,
-                tooltip: '로그아웃',
                 onPressed: () async {
                   context.read<CapsuleViewModel>().stopWatching();
                   await auth.signOut();
@@ -120,7 +176,6 @@ class _MapScreenState extends State<MapScreen> {
             ],
           ),
 
-          // 날짜 헤더
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
@@ -128,20 +183,18 @@ class _MapScreenState extends State<MapScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    DateFormat('yyyy년 M월 d일 EEEE', 'ko').format(DateTime.now()),
+                    DateFormat('yyyy년 M월 d일 EEEE', 'ko')
+                        .format(DateTime.now()),
                     style: GoogleFonts.gaegu(
                         fontSize: 14, color: AppTheme.textLight),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    '오늘도 어디선가\n기억을 남기고 있나요 ✦',
-                    style: GoogleFonts.gaegu(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.textDark,
-                      height: 1.4,
-                    ),
-                  ),
+                  Text('오늘도 어디선가\n기억을 남기고 있나요 ✦',
+                      style: GoogleFonts.gaegu(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.textDark,
+                          height: 1.4)),
                 ],
               ),
             ),
@@ -163,8 +216,7 @@ class _MapScreenState extends State<MapScreen> {
                           : _defaultPosition,
                       zoom: 15,
                     ),
-                    onMapCreated: (controller) =>
-                        _mapController.complete(controller),
+                    onMapCreated: (c) => _mapController.complete(c),
                     markers: _markers,
                     myLocationEnabled: true,
                     myLocationButtonEnabled: false,
@@ -176,20 +228,16 @@ class _MapScreenState extends State<MapScreen> {
             ),
           ),
 
-          // 섹션 헤더
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
               child: Row(
                 children: [
-                  Text(
-                    '내 기억들',
-                    style: GoogleFonts.gaegu(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.textDark,
-                    ),
-                  ),
+                  Text('내 기억들',
+                      style: GoogleFonts.gaegu(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.textDark)),
                   const SizedBox(width: 8),
                   if (!capsuleVm.isLoading)
                     Container(
@@ -199,29 +247,22 @@ class _MapScreenState extends State<MapScreen> {
                         color: AppTheme.primaryLight,
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: Text(
-                        '${capsuleVm.capsules.length}개',
-                        style: GoogleFonts.gaegu(
-                          fontSize: 13,
-                          color: AppTheme.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                      child: Text('${capsuleVm.capsules.length}개',
+                          style: GoogleFonts.gaegu(
+                              fontSize: 13,
+                              color: AppTheme.primary,
+                              fontWeight: FontWeight.w600)),
                     ),
                   const Spacer(),
-                  Text(
-                    email,
-                    style: GoogleFonts.notoSans(
-                        fontSize: 11, color: AppTheme.textLight),
-                  ),
+                  Text(email,
+                      style: GoogleFonts.notoSans(
+                          fontSize: 11, color: AppTheme.textLight)),
                 ],
               ),
             ),
           ),
 
-          // 캡슐 목록
           _buildCapsuleList(capsuleVm),
-
           const SliverToBoxAdapter(child: SizedBox(height: 100)),
         ],
       ),
@@ -232,11 +273,11 @@ class _MapScreenState extends State<MapScreen> {
         ),
         backgroundColor: AppTheme.primary,
         icon: const Icon(Icons.add_location_alt_outlined),
-        label: Text(
-          '기억 남기기',
-          style: GoogleFonts.gaegu(
-              fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white),
-        ),
+        label: Text('기억 남기기',
+            style: GoogleFonts.gaegu(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: Colors.white)),
       ),
     );
   }
@@ -244,8 +285,8 @@ class _MapScreenState extends State<MapScreen> {
   Widget _buildCapsuleList(CapsuleViewModel capsuleVm) {
     if (capsuleVm.isLoading) {
       return const SliverFillRemaining(
-        child:
-            Center(child: CircularProgressIndicator(color: AppTheme.primary)),
+        child: Center(
+            child: CircularProgressIndicator(color: AppTheme.primary)),
       );
     }
 
@@ -296,8 +337,7 @@ class _CapsuleCard extends StatelessWidget {
       onTap: () => Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => CapsuleDetailScreen(capsule: capsule),
-        ),
+            builder: (_) => CapsuleDetailScreen(capsule: capsule)),
       ),
       child: Container(
         decoration: BoxDecoration(
@@ -309,7 +349,6 @@ class _CapsuleCard extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // 날짜 사이드바
               Container(
                 width: 56,
                 decoration: const BoxDecoration(
@@ -333,8 +372,6 @@ class _CapsuleCard extends StatelessWidget {
                   ],
                 ),
               ),
-
-              // 내용
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.all(14),
@@ -379,27 +416,20 @@ class _CapsuleCard extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 8),
-                      Text(
-                        capsule.memo,
-                        style: GoogleFonts.gaegu(
-                            fontSize: 15,
-                            color: AppTheme.textDark,
-                            height: 1.5),
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                      Text(capsule.memo,
+                          style: GoogleFonts.gaegu(
+                              fontSize: 15,
+                              color: AppTheme.textDark,
+                              height: 1.5),
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis),
                       const SizedBox(height: 6),
-                      // 탭 유도
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          Text(
-                            '자세히 보기 →',
-                            style: GoogleFonts.notoSans(
-                              fontSize: 10,
-                              color: AppTheme.primary,
-                            ),
-                          ),
+                          Text('자세히 보기 →',
+                              style: GoogleFonts.notoSans(
+                                  fontSize: 10, color: AppTheme.primary)),
                         ],
                       ),
                     ],
