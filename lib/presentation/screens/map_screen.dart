@@ -52,7 +52,6 @@ class _MapScreenState extends State<MapScreen> {
       const size = 96.0;
       const iconSize = 52.0;
 
-      // 아이콘 그리기 (북마크 아이콘)
       final textPainter = TextPainter(
         text: TextSpan(
           text: String.fromCharCode(Icons.bookmark.codePoint),
@@ -84,7 +83,6 @@ class _MapScreenState extends State<MapScreen> {
         });
       }
     } catch (_) {
-      // 실패 시 기본 마커 사용
       setState(() {
         _customMarker = BitmapDescriptor.defaultMarkerWithHue(30);
       });
@@ -105,7 +103,7 @@ class _MapScreenState extends State<MapScreen> {
     } catch (_) {}
   }
 
-  void _updateMarkers(List<Capsule> capsules) {
+  void _updateMarkers(List<Capsule> capsules, BuildContext context) {
     final marker = _customMarker ?? BitmapDescriptor.defaultMarkerWithHue(30);
     setState(() {
       _markers = capsules.map((c) {
@@ -113,6 +111,12 @@ class _MapScreenState extends State<MapScreen> {
           markerId: MarkerId(c.id),
           position: LatLng(c.latitude, c.longitude),
           icon: marker,
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => CapsuleDetailScreen(capsule: c),
+            ),
+          ),
           infoWindow: InfoWindow(
             title:
                 c.memo.length > 20 ? '${c.memo.substring(0, 20)}...' : c.memo,
@@ -130,7 +134,7 @@ class _MapScreenState extends State<MapScreen> {
     final email = auth.user?.email ?? '';
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _updateMarkers(capsuleVm.capsules);
+      _updateMarkers(capsuleVm.capsules, context);
     });
 
     return Scaffold(
