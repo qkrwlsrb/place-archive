@@ -2,7 +2,6 @@
 import 'dart:async';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -46,61 +45,48 @@ class _MapScreenState extends State<MapScreen> {
     });
   }
 
-  /// 커스텀 마커 생성 — 따뜻한 원형 핀
   Future<void> _createCustomMarker() async {
-    final recorder = ui.PictureRecorder();
-    final canvas = Canvas(recorder);
-    const size = 80.0;
+    try {
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder);
+      const size = 96.0;
+      const iconSize = 52.0;
 
-    final paint = Paint()..color = const Color(0xFFB87A50);
-    final shadowPaint = Paint()
-      ..color = Colors.black.withOpacity(0.15)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
+      // 아이콘 그리기 (북마크 아이콘)
+      final textPainter = TextPainter(
+        text: TextSpan(
+          text: String.fromCharCode(Icons.bookmark.codePoint),
+          style: TextStyle(
+            fontSize: iconSize,
+            fontFamily: Icons.bookmark.fontFamily,
+            color: const Color(0xFFB87A50),
+          ),
+        ),
+        textDirection: ui.TextDirection.ltr,
+      );
+      textPainter.layout();
+      textPainter.paint(
+        canvas,
+        Offset(
+          (size - textPainter.width) / 2,
+          (size - textPainter.height) / 2,
+        ),
+      );
 
-    // 그림자
-    canvas.drawCircle(
-        const Offset(size / 2, size / 2 + 3), 22, shadowPaint);
+      final picture = recorder.endRecording();
+      final image = await picture.toImage(size.toInt(), size.toInt());
+      final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
 
-    // 원형 배경
-    canvas.drawCircle(const Offset(size / 2, size / 2), 22, paint);
-
-    // 흰색 테두리
-    canvas.drawCircle(
-      const Offset(size / 2, size / 2),
-      22,
-      Paint()
-        ..color = Colors.white
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3,
-    );
-
-    // 하트 아이콘 텍스트
-    final textPainter = TextPainter(
-      text: const TextSpan(
-        text: '✦',
-        style: TextStyle(fontSize: 20, color: Colors.white),
-      ),
-      textDirection: TextDirection.ltr,
-    );
-    textPainter.layout();
-    textPainter.paint(
-      canvas,
-      Offset(
-        size / 2 - textPainter.width / 2,
-        size / 2 - textPainter.height / 2,
-      ),
-    );
-
-    final picture = recorder.endRecording();
-    final image =
-        await picture.toImage(size.toInt(), size.toInt());
-    final bytes =
-        await image.toByteData(format: ui.ImageByteFormat.png);
-
-    if (bytes != null) {
+      if (bytes != null && mounted) {
+        setState(() {
+          _customMarker =
+              BitmapDescriptor.fromBytes(bytes.buffer.asUint8List());
+        });
+      }
+    } catch (_) {
+      // 실패 시 기본 마커 사용
       setState(() {
-        _customMarker =
-            BitmapDescriptor.fromBytes(bytes.buffer.asUint8List());
+        _customMarker = BitmapDescriptor.defaultMarkerWithHue(30);
       });
     }
   }
@@ -109,7 +95,6 @@ class _MapScreenState extends State<MapScreen> {
     try {
       final position = await _locationService.getCurrentPosition();
       setState(() => _currentPosition = position);
-
       final controller = await _mapController.future;
       await controller.animateCamera(
         CameraUpdate.newLatLngZoom(
@@ -129,9 +114,8 @@ class _MapScreenState extends State<MapScreen> {
           position: LatLng(c.latitude, c.longitude),
           icon: marker,
           infoWindow: InfoWindow(
-            title: c.memo.length > 20
-                ? '${c.memo.substring(0, 20)}...'
-                : c.memo,
+            title:
+                c.memo.length > 20 ? '${c.memo.substring(0, 20)}...' : c.memo,
             snippet: DateFormat('yyyy.MM.dd').format(c.createdAt),
           ),
         );
@@ -175,7 +159,6 @@ class _MapScreenState extends State<MapScreen> {
               ),
             ],
           ),
-
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
@@ -183,8 +166,7 @@ class _MapScreenState extends State<MapScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    DateFormat('yyyy년 M월 d일 EEEE', 'ko')
-                        .format(DateTime.now()),
+                    DateFormat('yyyy년 M월 d일 EEEE', 'ko').format(DateTime.now()),
                     style: GoogleFonts.gaegu(
                         fontSize: 14, color: AppTheme.textLight),
                   ),
@@ -199,8 +181,6 @@ class _MapScreenState extends State<MapScreen> {
               ),
             ),
           ),
-
-          // Google Maps
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -227,7 +207,6 @@ class _MapScreenState extends State<MapScreen> {
               ),
             ),
           ),
-
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
@@ -261,7 +240,6 @@ class _MapScreenState extends State<MapScreen> {
               ),
             ),
           ),
-
           _buildCapsuleList(capsuleVm),
           const SliverToBoxAdapter(child: SizedBox(height: 100)),
         ],
@@ -285,8 +263,8 @@ class _MapScreenState extends State<MapScreen> {
   Widget _buildCapsuleList(CapsuleViewModel capsuleVm) {
     if (capsuleVm.isLoading) {
       return const SliverFillRemaining(
-        child: Center(
-            child: CircularProgressIndicator(color: AppTheme.primary)),
+        child:
+            Center(child: CircularProgressIndicator(color: AppTheme.primary)),
       );
     }
 
