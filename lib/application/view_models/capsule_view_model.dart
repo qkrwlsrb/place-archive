@@ -3,9 +3,11 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../../domain/entities/capsule.dart';
 import '../../data/repositories/capsule_repository.dart';
+import '../../domain/services/geofence_service.dart';
 
 class CapsuleViewModel extends ChangeNotifier {
   final CapsuleRepository _repo;
+  final GeofenceService _geofence = GeofenceService();
 
   List<Capsule> _capsules = [];
   List<Capsule> _publicCapsules = [];
@@ -30,6 +32,8 @@ class CapsuleViewModel extends ChangeNotifier {
         _capsules = capsules;
         _isLoading = false;
         _error = null;
+        // Geofence에 최신 캡슐 목록 전달
+        _geofence.updateCapsules(capsules);
         notifyListeners();
       },
       onError: (e) {
@@ -38,6 +42,8 @@ class CapsuleViewModel extends ChangeNotifier {
         notifyListeners();
       },
     );
+    // Geofence 시작
+    _geofence.start();
   }
 
   void startWatchingPublic() {
@@ -53,6 +59,7 @@ class CapsuleViewModel extends ChangeNotifier {
   void stopWatching() {
     _capsulesub?.cancel();
     _publicSub?.cancel();
+    _geofence.stop();
     _capsules = [];
     _publicCapsules = [];
     _isLoading = false;
@@ -100,6 +107,7 @@ class CapsuleViewModel extends ChangeNotifier {
   void dispose() {
     _capsulesub?.cancel();
     _publicSub?.cancel();
+    _geofence.stop();
     super.dispose();
   }
 }
