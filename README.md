@@ -111,4 +111,4 @@ MIT
 
 ## 만든 사람
 
-이징규 · [GitHub @qkrwlsrb](https://github.com/qkrwlsrb)
+박진규 · [GitHub @qkrwlsrb](https://github.com/qkrwlsrb)
