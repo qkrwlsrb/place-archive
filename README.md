@@ -8,7 +8,9 @@
 
 ## 데모
 
-> 앱 실행 → 로그인 → 기억 남기기 → 지도에서 마커 확인 → 상세 조회
+| 로그인 | 지도 & 목록 | 기억 남기기 | 기억 상세 |
+|--------|-------------|-------------|-----------|
+| ![로그인](assets/screenshots/01_login.jpg) | ![지도](assets/screenshots/04_map.jpg) | ![생성](assets/screenshots/02_create.jpg) | ![상세](assets/screenshots/03_detail.jpg) |
 
 ## 주요 기능
 
