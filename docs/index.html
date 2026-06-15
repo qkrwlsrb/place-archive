@@ -76,6 +76,11 @@
 
   /* SLIDE 11 — 활용방안 & 향후 */
   .s11 { background: var(--cream); align-items: flex-start; }
+  .s11-grid3 { display: grid; grid-template-columns: 1fr 1.2fr 1fr; gap: 18px; width: 100%; max-width: 1040px; align-items: start; }
+  .s11-video-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .s11-video { width: 100%; border-radius: 14px; border: 2px solid var(--border); box-shadow: 0 4px 18px rgba(0,0,0,0.10); background: #000; max-height: 340px; object-fit: contain; }
+  .s11-cards { display: flex; flex-direction: column; gap: 8px; }
+  .s11-card-sm { background: white; border: 1.5px solid var(--border); border-radius: 12px; padding: 12px 14px; font-size: 14.5px; color: var(--text-mid); line-height: 1.55; }
 
   /* SLIDE 12 — 마무리 */
   .s12 { background: var(--text-dark); }
@@ -575,40 +580,50 @@ style F fill:#3D2B1F,color:#fff,stroke:#3D2B1F
 <!-- ── SLIDE 11: 활용방안 & AI 활용 ── -->
 <div class="slide s11">
   <div class="label">Future & AI Agent</div>
-  <div class="title">활용 방안 & 지속적 성장</div>
-  <div class="grid2" style="max-width:900px;">
+  <div class="title" style="margin-bottom:16px;">활용 방안 & 지속적 성장</div>
+  <div class="s11-grid3">
+    <!-- 왼쪽: 향후 발전 방향 -->
     <div>
-      <div style="font-family:'Gaegu',cursive;font-size: 22px;color:var(--text-dark);margin-bottom:12px;">🚀 향후 발전 방향</div>
-      <div style="display:flex;flex-direction:column;gap:8px;">
-        <div class="card" style="font-size: 17px;color:var(--text-mid);line-height:1.6;">
-          <b style="color:var(--text-dark);">Geofencing 고도화</b> — 배경에서도 동작하는 백그라운드 위치 감지
+      <div style="font-family:'Gaegu',cursive;font-size:19px;color:var(--text-dark);margin-bottom:10px;">🚀 향후 발전 방향</div>
+      <div class="s11-cards">
+        <div class="s11-card-sm">
+          <b style="color:var(--text-dark);">Geofencing 고도화</b><br>배경 동작 백그라운드 위치 감지
         </div>
-        <div class="card" style="font-size: 17px;color:var(--text-mid);line-height:1.6;">
-          <b style="color:var(--text-dark);">소셜 기능</b> — 팔로우/팔로워, 댓글, 좋아요
+        <div class="s11-card-sm">
+          <b style="color:var(--text-dark);">소셜 기능</b><br>팔로우/팔로워, 댓글, 좋아요
         </div>
-        <div class="card" style="font-size: 17px;color:var(--text-mid);line-height:1.6;">
-          <b style="color:var(--text-dark);">Play Store 출시</b> — 서명 키 설정 + Google Play Internal Testing
+        <div class="s11-card-sm">
+          <b style="color:var(--text-dark);">Play Store 출시</b><br>서명 키 설정 + Google Play Internal Testing
         </div>
-        <div class="card" style="font-size: 17px;color:var(--text-mid);line-height:1.6;background:var(--primary-light);border-color:var(--primary);">
+        <div class="s11-card-sm" style="background:var(--primary-light);border-color:var(--primary);">
           <b style="color:var(--primary);">지속적 기술 개선 의지 ✦</b><br>
-          레이어드 아키텍처 → Clean Architecture로 발전, TDD 도입, CI/CD 파이프라인 구축까지 단계적으로 성장할 계획
+          레이어드 → Clean Architecture, TDD, CI/CD 단계적 성장
         </div>
       </div>
     </div>
+    <!-- 가운데: 데모 영상 -->
+    <div class="s11-video-wrap">
+      <div style="font-family:'Gaegu',cursive;font-size:19px;color:var(--text-dark);margin-bottom:10px;text-align:center;">🎬 앱 데모</div>
+      <video class="s11-video" controls muted playsinline>
+        <source src="demo.mp4" type="video/mp4">
+      </video>
+      <div style="font-size:13px;color:var(--text-light);text-align:center;">실제 앱 구동 화면</div>
+    </div>
+    <!-- 오른쪽: AI Agent 활용 -->
     <div>
-      <div style="font-family:'Gaegu',cursive;font-size: 22px;color:var(--text-dark);margin-bottom:12px;">🤖 AI Agent 활용</div>
-      <div style="display:flex;flex-direction:column;gap:8px;">
-        <div class="card" style="font-size: 17px;color:var(--text-mid);line-height:1.6;">
-          <b style="color:var(--text-dark);">Claude와 협업</b> — 아키텍처 설계부터 코드 구현까지 전 과정
+      <div style="font-family:'Gaegu',cursive;font-size:19px;color:var(--text-dark);margin-bottom:10px;">🤖 AI Agent 활용</div>
+      <div class="s11-cards">
+        <div class="s11-card-sm">
+          <b style="color:var(--text-dark);">Claude와 협업</b><br>아키텍처 설계부터 코드 구현까지 전 과정
         </div>
-        <div class="card" style="font-size: 17px;color:var(--text-mid);line-height:1.6;">
-          <b style="color:var(--text-dark);">AGENTS.md 운영</b> — AI가 프로젝트 맥락을 이해하도록 가이드 문서 관리
+        <div class="s11-card-sm">
+          <b style="color:var(--text-dark);">AGENTS.md 운영</b><br>AI가 프로젝트 맥락을 이해하도록 가이드 문서 관리
         </div>
-        <div class="card" style="font-size: 17px;color:var(--text-mid);line-height:1.6;">
-          <b style="color:var(--text-dark);">오류 디버깅</b> — 빌드 오류, Firebase 설정, 에뮬레이터 이슈를 AI와 함께 해결
+        <div class="s11-card-sm">
+          <b style="color:var(--text-dark);">오류 디버깅</b><br>빌드 오류, Firebase, 에뮬레이터 이슈 AI와 함께 해결
         </div>
-        <div class="card" style="font-size: 17px;color:var(--text-mid);line-height:1.6;">
-          <b style="color:var(--text-dark);">문서 자동화</b> — README, ADR, deploy, testing 문서 AI 생성
+        <div class="s11-card-sm">
+          <b style="color:var(--text-dark);">문서 자동화</b><br>README, ADR, deploy, testing 문서 AI 생성
         </div>
       </div>
     </div>
