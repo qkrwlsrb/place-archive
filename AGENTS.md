@@ -121,4 +121,4 @@ ADR 파일(`.planning/decisions/`) 참고. 아래 결정은 확정이며 대안 
 | 도구 | 용도 |
 |------|------|
 | Claude (claude.ai) | 기획, 코드 생성, 디버깅, 문서 작성 전반 |
-| Claude Code | 파일 직접 편집, 터미널 작업, 발표자료 생성 |
+| Claude Code | 파일 직접 편집, 터미널 작업 |
